@@ -49,3 +49,16 @@ int main(int argc, char **argv)
     powerset(a, n, target, sub, 0, 0, 0);
     return 0;
 }
+
+/* Start with:
+an empty chosen-group,
+a running sum of zero,
+and a start position at the first number.
+Repeat this recursive process:
+If the running sum equals the target, output the chosen-group.
+From the current start position, try each remaining number one by one:
+Add that number to the chosen-group.
+Move recursion forward so the next step can only use numbers after it.
+Update the running sum with the chosen number.
+After returning, remove that number from the chosen-group and try the next candidate.
+Stop when there are no more candidates left at the current level.*/
