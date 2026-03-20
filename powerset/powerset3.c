@@ -1,5 +1,5 @@
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 void    powerset(int *a, int n, int target, int *sub, int size, int i, int sum)
 {
@@ -29,9 +29,9 @@ void    powerset(int *a, int n, int target, int *sub, int size, int i, int sum)
 int main(int argc, char *argv[])
 {
     int target;
-    int n = argc - 2;
     int a[100];
     int sub[100];
+    int n = argc - 2;
     int i = 0;
 
     if (argc < 3)
@@ -46,15 +46,3 @@ int main(int argc, char *argv[])
     powerset(a, n, target, sub, 0, 0, 0);
     return 0;
 }
-/* Start with:
-an empty chosen-group,
-a running sum of zero,
-and a start position at the first number.
-Repeat this recursive process:
-If the running sum equals the target, output the chosen-group.
-From the current start position, try each remaining number one by one:
-Add that number to the chosen-group.
-Move recursion forward so the next step can only use numbers after it.
-Update the running sum with the chosen number.
-After returning, remove that number from the chosen-group and try the next candidate.
-Stop when there are no more candidates left at the current level.*/

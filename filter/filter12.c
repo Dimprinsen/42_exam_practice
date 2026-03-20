@@ -3,15 +3,15 @@
 #endif
 
 #include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
+#include <stdio.h>
 
 void    ft_filter(char *buffer, const char *target)
 {
     int i = 0;
-    int j, k;
     int target_len = strlen(target);
+    int j, k;
 
     while (buffer[i])
     {
