@@ -1,0 +1,229 @@
+PSEUDOCODE FOR given.c (vbc exercise)
+====================================
+
+Purpose
+-------
+Build a recursive-descent parser for arithmetic expressions, then evaluate
+the produced syntax tree.
+
+Supported input elements:
+- one-digit numbers: 0 through 9
+- addition operator: +
+- multiplication operator: *
+- parentheses for grouping: ( ... )
+
+
+Expression rules and precedence
+-------------------------------
+The parser follows this grammar:
+
+expr   := add
+add    := mult ( '+' mult )*
+mult   := group ( '*' mult )?
+group  := '(' add ')' | digit
+
+Interpretation:
+- Multiplication has higher priority than addition.
+- Addition is left-associative because parse_add repeatedly consumes
+  "+ mult" in a loop.
+- Multiplication is written as right-recursive in this version because
+  parse_mult calls itself for the right side after reading '*'.
+
+
+How tokens are consumed
+-----------------------
+The parser uses a mutable character pointer (char **s).
+- *s points to the current character to read.
+- When a token is successfully consumed, *s is advanced.
+- If parsing fails at any level, return NULL and free partially built trees.
+
+
+1) accept(s, c)
+---------------
+FUNCTION accept(pointer_to_string s, char c) -> int
+    # Try to consume exactly one expected character.
+    IF current character (**s) equals c
+        advance *s by one character
+        RETURN 1
+    ENDIF
+    RETURN 0
+END
+
+Behavior summary:
+- Success: consumes the character and returns 1.
+- Failure: consumes nothing and returns 0.
+
+
+2) expect(s, c)
+---------------
+FUNCTION expect(pointer_to_string s, char c) -> int
+    # Same as accept, but reports a syntax error on failure.
+    IF accept(s, c) == 1
+        RETURN 1
+    ENDIF
+    call unexpected(current character **s)
+    RETURN 0
+END
+
+Behavior summary:
+- Use expect when the grammar requires a mandatory token
+  (for example the closing ')').
+
+
+3) parse_group(s)
+-----------------
+FUNCTION parse_group(pointer_to_string s) -> node*
+    DECLARE result
+
+    # Case A: parenthesized expression: '(' add ')'
+    IF accept(s, '(')
+        result = parse_add(s)
+        IF result is NULL
+            RETURN NULL
+        ENDIF
+
+        IF expect(s, ')') == 0
+            destroy_tree(result)
+            RETURN NULL
+        ENDIF
+
+        RETURN result
+    ENDIF
+
+    # Case B: single digit value
+    IF current character (**s) is a digit
+        result = new_node(type=VAL, val=(**s - '0'), l=NULL, r=NULL)
+        IF result is NULL
+            RETURN NULL
+        ENDIF
+        advance *s by one character
+        RETURN result
+    ENDIF
+
+    # Any other character is invalid at group level.
+    call unexpected(current character **s)
+    RETURN NULL
+END
+
+
+4) parse_mult(s)
+----------------
+FUNCTION parse_mult(pointer_to_string s) -> node*
+    left = parse_group(s)
+    IF left is NULL
+        RETURN NULL
+    ENDIF
+
+    # Optional: '*' mult
+    IF accept(s, '*')
+        right = parse_mult(s)
+        IF right is NULL
+            destroy_tree(left)
+            RETURN NULL
+        ENDIF
+
+        root = new_node(type=MULTI, val=0, l=left, r=right)
+        IF root is NULL
+            destroy_tree(left)
+            destroy_tree(right)
+            RETURN NULL
+        ENDIF
+
+        left = root
+    ENDIF
+
+    RETURN left
+END
+
+Notes:
+- parse_mult first parses the left group.
+- If '*' is present, it parses the right side recursively and combines both
+  children under a MULTI node.
+
+
+5) parse_add(s)
+---------------
+FUNCTION parse_add(pointer_to_string s) -> node*
+    left = parse_mult(s)
+    IF left is NULL
+        RETURN NULL
+    ENDIF
+
+    # Repeated additions: mult + mult + mult ...
+    WHILE accept(s, '+')
+        right = parse_mult(s)
+        IF right is NULL
+            destroy_tree(left)
+            RETURN NULL
+        ENDIF
+
+        root = new_node(type=ADD, val=0, l=left, r=right)
+        IF root is NULL
+            destroy_tree(left)
+            destroy_tree(right)
+            RETURN NULL
+        ENDIF
+
+        left = root
+    ENDWHILE
+
+    RETURN left
+END
+
+Notes:
+- This loop naturally builds left-associative addition trees.
+
+
+6) parse_expr(input)
+--------------------
+FUNCTION parse_expr(char *input) -> node*
+    cursor = input
+    tree = parse_add(&cursor)
+    IF tree is NULL
+        RETURN NULL
+    ENDIF
+
+    # Entire input must be consumed.
+    IF current character at cursor is not '\0'
+        destroy_tree(tree)
+        call unexpected(current character at cursor)
+        RETURN NULL
+    ENDIF
+
+    RETURN tree
+END
+
+Why this final check matters:
+- It rejects inputs like "2+3abc" where a valid prefix exists but extra
+  invalid characters remain.
+
+
+7) eval_tree(tree)
+------------------
+FUNCTION eval_tree(node *tree) -> int
+    SWITCH tree->type
+        CASE ADD:
+            RETURN eval_tree(tree->l) + eval_tree(tree->r)
+        CASE MULTI:
+            RETURN eval_tree(tree->l) * eval_tree(tree->r)
+        CASE VAL:
+            RETURN tree->val
+    ENDSWITCH
+END
+
+Evaluation idea:
+- Leaf nodes (VAL) return their stored digit.
+- Internal nodes (ADD, MULTI) recursively evaluate children and combine
+  the results.
+
+
+Implementation checklist for given.c
+------------------------------------
+[ ] Correct accept() to compare **s with c, then advance *s on success.
+[ ] Add forward declarations for parse_group, parse_mult, parse_add.
+[ ] Implement parse_group with parenthesis handling and digit nodes.
+[ ] Implement parse_mult using optional '*' + recursive right parse.
+[ ] Implement parse_add using a loop for repeated '+' operations.
+[ ] Implement parse_expr with a full-consumption trailing-token check.
+[ ] Ensure every failure path releases partially built subtrees.
+[ ] Keep unexpected() behavior and error messages consistent.
